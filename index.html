@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AbacusKids — Learn to Count!</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFF9F0;
+    --card: #FFFFFF;
+    --text: #2D2040;
+    --muted: #7A6D8A;
+    --accent1: #FF6B6B;
+    --accent2: #FFD93D;
+    --accent3: #6BCB77;
+    --accent4: #4D96FF;
+    --accent5: #FF922B;
+    --bead-top: #FF6B6B;
+    --bead-bottom: #4D96FF;
+    --bead-inactive: #DDD8F0;
+    --rod: #C4A882;
+    --shadow: 0 4px 20px rgba(45,32,64,0.10);
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Confetti canvas */
+  #confetti-canvas {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* Header */
+  header {
+    background: linear-gradient(135deg, #4D96FF 0%, #8B5CF6 100%);
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 15px rgba(77,150,255,0.3);
+  }
+  header h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 28px; color: white; letter-spacing: 1px;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.15);
+  }
+  .score-box {
+    background: rgba(255,255,255,0.2);
+    border-radius: 40px; padding: 8px 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .score-box span { font-size: 18px; font-weight: 800; color: white; }
+  .star-icon { font-size: 22px; }
+
+  /* Nav tabs */
+  .nav {
+    display: flex; gap: 8px; padding: 16px 24px 0;
+    overflow-x: auto;
+  }
+  .nav-btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 15px; padding: 10px 20px;
+    border: none; border-radius: 40px; cursor: pointer;
+    background: var(--card); color: var(--muted);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .nav-btn.active {
+    background: #4D96FF; color: white;
+    box-shadow: 0 4px 14px rgba(77,150,255,0.4);
+    transform: translateY(-2px);
+  }
+  .nav-btn:hover:not(.active) { background: #F0EEFF; color: #4D96FF; }
+
+  /* Sections */
+  .section { display: none; padding: 20px 24px 40px; }
+  .section.active { display: block; }
+
+  /* Abacus Frame */
+  .abacus-wrapper {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+  .abacus-frame {
+    background: #8B5E3C;
+    border-radius: 20px;
+    padding: 20px 16px;
+    box-shadow: 0 8px 30px rgba(139,94,60,0.4), inset 0 2px 8px rgba(255,255,255,0.1);
+    width: 100%; max-width: 520px;
+    position: relative;
+  }
+  .abacus-inner {
+    background: #F5DEB3;
+    border-radius: 12px;
+    padding: 16px 12px;
+    display: flex; gap: 10px;
+    justify-content: center;
+    min-height: 200px;
+    position: relative;
+  }
+
+  /* Rod */
+  .rod-container {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0;
+    position: relative; width: 44px;
+  }
+  .rod-line {
+    width: 6px; background: linear-gradient(to bottom, #A0845C, #7A5C3A, #A0845C);
+    border-radius: 3px; flex: 1;
+    min-height: 180px;
+    position: relative;
+  }
+  .rod-label {
+    font-family: 'Fredoka One', cursive;
+    font-size: 13px; color: #5A3E1B;
+    margin-top: 8px; text-align: center;
+  }
+
+  /* Bead */
+  .bead {
+    width: 36px; height: 36px; border-radius: 50%;
+    cursor: pointer;
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    transition: top 0.25s cubic-bezier(.34,1.56,.64,1), background 0.2s, box-shadow 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: white;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+    z-index: 2;
+    user-select: none;
+  }
+  .bead.inactive {
+    background: radial-gradient(circle at 35% 35%, #E8E0FF, var(--bead-inactive));
+    box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+  }
+  .bead.active {
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,0.3);
+  }
+
+  /* Divider bar */
+  .divider-bar {
+    background: #6B4C2A;
+    height: 10px;
+    border-radius: 5px;
+    width: 100%;
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    z-index: 3;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Display */
+  .display-row {
+    display: flex; justify-content: center; align-items: center; gap: 16px;
+    flex-wrap: wrap;
+  }
+  .value-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 12px 24px;
+    box-shadow: var(--shadow);
+    text-align: center;
+  }
+  .value-card .label { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .value-card .value {
+    font-family: 'Fredoka One', cursive;
+    font-size: 40px; color: #4D96FF;
+    line-height: 1.1;
+  }
+  .reset-btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 16px; padding: 12px 28px;
+    border: none; border-radius: 40px; cursor: pointer;
+    background: var(--accent1); color: white;
+    box-shadow: 0 4px 14px rgba(255,107,107,0.4);
+    transition: all 0.2s;
+  }
+  .reset-btn:hover { transform: scale(1.05); }
+  .reset-btn:active { transform: scale(0.97); }
+
+  /* Instruction cards */
+  .info-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px 20px; box-shadow: var(--shadow);
+    font-size: 14px; color: var(--muted);
+    max-width: 520px; width: 100%; text-align: center;
+  }
+  .info-card strong { color: var(--text); }
+
+  /* Quiz section */
+  .quiz-card {
+    background: var(--card); border-radius: 24px;
+    padding: 28px; box-shadow: var(--shadow);
+    max-width: 540px; margin: 0 auto;
+  }
+  .quiz-question {
+    font-family: 'Fredoka One', cursive;
+    font-size: 22px; text-align: center;
+    margin-bottom: 20px; color: var(--text);
+    line-height: 1.3;
+  }
+  .quiz-abacus-mini {
+    background: #F5DEB3; border-radius: 12px;
+    padding: 12px; margin-bottom: 20px;
+    display: flex; justify-content: center; gap: 8px;
+  }
+  .mini-rod { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .mini-bead {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: white;
+  }
+  .mini-divider { height: 4px; background: #6B4C2A; width: 100%; border-radius: 2px; }
+  .choices {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-bottom: 20px;
+  }
+  .choice-btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 22px; padding: 16px;
+    border: 3px solid transparent; border-radius: var(--radius);
+    cursor: pointer; background: #F0EEFF; color: var(--text);
+    transition: all 0.2s;
+  }
+  .choice-btn:hover:not(:disabled) { background: #E0D9FF; transform: scale(1.03); }
+  .choice-btn.correct { background: #D4EDDA; border-color: #28A745; color: #155724; }
+  .choice-btn.wrong { background: #F8D7DA; border-color: #DC3545; color: #721C24; }
+  .choice-btn:disabled { cursor: default; }
+  .feedback {
+    text-align: center; font-family: 'Fredoka One', cursive;
+    font-size: 20px; min-height: 30px; margin-bottom: 12px;
+  }
+  .next-btn {
+    font-family: 'Fredoka One', cursive; font-size: 18px;
+    padding: 14px 32px; border: none; border-radius: 40px;
+    cursor: pointer; background: #4D96FF; color: white;
+    width: 100%; box-shadow: 0 4px 14px rgba(77,150,255,0.4);
+    transition: all 0.2s; display: none;
+  }
+  .next-btn:hover { transform: scale(1.03); }
+
+  /* Count mode */
+  .count-target-display {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px 28px; box-shadow: var(--shadow);
+    text-align: center; max-width: 520px; width: 100%;
+  }
+  .count-target-display .target-label {
+    font-size: 13px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .count-target-display .target-num {
+    font-family: 'Fredoka One', cursive; font-size: 56px;
+    color: var(--accent3); line-height: 1.1;
+  }
+  .check-btn {
+    font-family: 'Fredoka One', cursive; font-size: 18px;
+    padding: 14px 36px; border: none; border-radius: 40px;
+    cursor: pointer; background: var(--accent3); color: white;
+    box-shadow: 0 4px 14px rgba(107,203,119,0.45);
+    transition: all 0.2s;
+  }
+  .check-btn:hover { transform: scale(1.05); }
+
+  /* Counting game section */
+  .counting-grid {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center; max-width: 540px; margin: 0 auto;
+  }
+  .count-item {
+    width: 54px; height: 54px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+    background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    user-select: none;
+  }
+  .count-item.counted { opacity: 0.35; transform: scale(0.85); }
+  .count-item:not(.counted):hover { transform: scale(1.15); }
+
+  /* Level selector */
+  .level-row {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .level-btn {
+    font-family: 'Fredoka One', cursive; font-size: 14px;
+    padding: 8px 20px; border: none; border-radius: 40px;
+    cursor: pointer; background: var(--card); color: var(--muted);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.2s;
+  }
+  .level-btn.active { background: var(--accent2); color: #5A3E00; box-shadow: 0 4px 12px rgba(255,217,61,0.4); }
+
+  /* Progress stars */
+  .stars-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 20px; }
+  .star { font-size: 24px; transition: transform 0.3s; }
+  .star.earned { animation: starPop 0.4s ease; }
+  @keyframes starPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.5) rotate(15deg); }
+    100% { transform: scale(1); }
+  }
+
+  /* Tips section */
+  .tips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .tip-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow);
+  }
+  .tip-icon { font-size: 32px; margin-bottom: 8px; }
+  .tip-card h3 { font-family: 'Fredoka One', cursive; font-size: 17px; color: var(--text); margin-bottom: 6px; }
+  .tip-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* Celebration overlay */
+  .celebration {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .celebration.show { opacity: 1; pointer-events: all; }
+  .celebration-box {
+    background: white; border-radius: 28px; padding: 40px;
+    text-align: center; transform: scale(0.7); transition: transform 0.3s;
+    max-width: 340px;
+  }
+  .celebration.show .celebration-box { transform: scale(1); }
+  .celebration-emoji { font-size: 64px; }
+  .celebration-title { font-family: 'Fredoka One', cursive; font-size: 30px; color: #4D96FF; margin: 12px 0 8px; }
+  .celebration-msg { font-size: 16px; color: var(--muted); margin-bottom: 20px; }
+  .celebration-close {
+    font-family: 'Fredoka One', cursive; font-size: 18px;
+    padding: 12px 36px; border: none; border-radius: 40px;
+    cursor: pointer; background: #4D96FF; color: white;
+    box-shadow: 0 4px 14px rgba(77,150,255,0.4);
+  }
+
+  /* Section headers */
+  .section-title {
+    font-family: 'Fredoka One', cursive; font-size: 24px;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .section-sub { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    header h1 { font-size: 22px; }
+    .abacus-frame { padding: 14px 10px; }
+    .rod-container { width: 36px; }
+    .bead { width: 30px; height: 30px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<header>
+  <h1>🧮 AbacusKids</h1>
+  <div class="score-box">
+    <span class="star-icon">⭐</span>
+    <span id="total-score">0</span>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showSection('free-play')">🎮 Free Play</button>
+  <button class="nav-btn" onclick="showSection('count-challenge')">🎯 Count It!</button>
+  <button class="nav-btn" onclick="showSection('quiz')">🧠 Quiz</button>
+  <button class="nav-btn" onclick="showSection('counting-game')">🐾 Count Animals</button>
+  <button class="nav-btn" onclick="showSection('tips')">📖 How To</button>
+</nav>
+
+<!-- FREE PLAY -->
+<div id="free-play" class="section active">
+  <p class="section-title">Free Play Abacus</p>
+  <p class="section-sub">Tap the beads to move them — watch the number change!</p>
+  <div class="abacus-wrapper">
+    <div class="display-row">
+      <div class="value-card">
+        <div class="label">Total Value</div>
+        <div class="value" id="fp-total">0</div>
+      </div>
+    </div>
+    <div id="abacus-frame" class="abacus-frame">
+      <div id="abacus-inner" class="abacus-inner">
+        <div class="divider-bar"></div>
+      </div>
+    </div>
+    <div class="display-row">
+      <button class="reset-btn" onclick="resetAbacus('fp')">🔄 Reset</button>
+    </div>
+    <div class="info-card">
+      <strong>How beads work:</strong> Upper beads = 5 each 🔴 · Lower beads = 1 each 🔵<br>
+      Slide beads toward the middle bar to count them!
+    </div>
+  </div>
+</div>
+
+<!-- COUNT CHALLENGE -->
+<div id="count-challenge" class="section">
+  <p class="section-title">Count It!</p>
+  <p class="section-sub">Set the abacus to match the target number</p>
+  <div class="abacus-wrapper">
+    <div class="count-target-display">
+      <div class="target-label">Show this number</div>
+      <div class="target-num" id="cc-target">0</div>
+    </div>
+    <div id="abacus-frame-cc" class="abacus-frame">
+      <div id="abacus-inner-cc" class="abacus-inner">
+        <div class="divider-bar"></div>
+      </div>
+    </div>
+    <div class="display-row">
+      <div class="value-card">
+        <div class="label">Your answer</div>
+        <div class="value" id="cc-total">0</div>
+      </div>
+      <button class="check-btn" onclick="checkCountChallenge()">✅ Check!</button>
+      <button class="reset-btn" onclick="newCountChallenge()">⏭ Next</button>
+    </div>
+    <div id="cc-feedback" class="feedback"></div>
+    <div class="stars-row" id="cc-stars">
+      <span class="star">☆</span><span class="star">☆</span><span class="star">☆</span>
+      <span class="star">☆</span><span class="star">☆</span>
+    </div>
+    <div class="level-row">
+      <button class="level-btn active" onclick="setLevel('easy', this)">😊 Easy (1–9)</button>
+      <button class="level-btn" onclick="setLevel('medium', this)">🤔 Medium (10–49)</button>
+      <button class="level-btn" onclick="setLevel('hard', this)">🔥 Hard (50–99)</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="section">
+  <p class="section-title">Quiz Time!</p>
+  <p class="section-sub">What number does the abacus show?</p>
+  <div class="quiz-card">
+    <div id="quiz-question" class="quiz-question">Loading...</div>
+    <div id="quiz-abacus" class="quiz-abacus-mini"></div>
+    <div class="choices" id="quiz-choices"></div>
+    <div class="feedback" id="quiz-feedback"></div>
+    <button class="next-btn" id="quiz-next" onclick="nextQuiz()">Next Question ➜</button>
+  </div>
+</div>
+
+<!-- COUNTING GAME -->
+<div id="counting-game" class="section">
+  <p class="section-title">Count the Animals!</p>
+  <p class="section-sub">Tap each animal to count it, then enter how many you see</p>
+  <div style="max-width:540px; margin:0 auto;">
+    <div id="animal-display" class="counting-grid" style="margin-bottom:20px;"></div>
+    <div style="display:flex; align-items:center; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:16px;">
+      <div class="value-card">
+        <div class="label">You counted</div>
+        <div class="value" id="cg-count">0</div>
+      </div>
+      <button class="check-btn" onclick="checkCountGame()">✅ Check!</button>
+      <button class="reset-btn" onclick="newCountGame()">🔄 New Game</button>
+    </div>
+    <div class="feedback" id="cg-feedback"></div>
+  </div>
+</div>
+
+<!-- TIPS -->
+<div id="tips" class="section">
+  <p class="section-title">How to Use an Abacus</p>
+  <p class="section-sub">Learn the basics of abacus counting!</p>
+  <div class="tips-grid">
+    <div class="tip-card">
+      <div class="tip-icon">🔴</div>
+      <h3>Upper Bead = 5</h3>
+      <p>Each upper bead is worth 5. Move it down toward the middle bar to count it.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-icon">🔵</div>
+      <h3>Lower Bead = 1</h3>
+      <p>Each lower bead is worth 1. Move it up toward the middle bar to count it.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-icon">🏛️</div>
+      <h3>Place Values</h3>
+      <p>Each column represents a place: ones (1s), tens (10s), hundreds (100s), and more!</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-icon">🔢</div>
+      <h3>Reading a Number</h3>
+      <p>Add up all the active beads in each column. Right column = 1s, next = 10s, next = 100s.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-icon">💡</div>
+      <h3>Example: 7</h3>
+      <p>Move 1 upper bead (=5) + 2 lower beads (=2) = 7. Try it in Free Play!</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-icon">🧮</div>
+      <h3>History</h3>
+      <p>Abacuses are over 2,000 years old! Ancient people used them to do math long before calculators.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Celebration overlay -->
+<div id="celebration" class="celebration">
+  <div class="celebration-box">
+    <div class="celebration-emoji" id="celeb-emoji">🎉</div>
+    <div class="celebration-title" id="celeb-title">Amazing!</div>
+    <div class="celebration-msg" id="celeb-msg">You got it right!</div>
+    <button class="celebration-close" onclick="closeCelebration()">Keep Going! 🚀</button>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+const COLS = 4;
+const PLACE_VALUES = [1, 10, 100, 1000];
+const BEAD_COLORS = [
+  {top:'#FF6B6B', bottom:'#4D96FF'},
+  {top:'#FF922B', bottom:'#6BCB77'},
+  {top:'#CC5DE8', bottom:'#20C997'},
+  {top:'#F06595', bottom:'#339AF0'}
+];
+
+let abaci = {};
+let totalScore = 0;
+let challengeLevel = 'easy';
+let currentTarget = 0;
+let quizAnswer = 0;
+let quizLocked = false;
+let cg_counted = 0;
+let cg_total = 0;
+let cc_stars = 0;
+
+// ===== ABACUS CORE =====
+function createAbacus(id, placeCount) {
+  const beads = [];
+  for (let c = 0; c < placeCount; c++) {
+    beads.push({ upper: [false], lower: [false, false, false, false] });
+  }
+  abaci[id] = { beads, placeCount };
+  renderAbacus(id);
+}
+
+function getValue(id) {
+  const ab = abaci[id];
+  let total = 0;
+  for (let c = 0; c < ab.placeCount; c++) {
+    const pv = PLACE_VALUES[c];
+    const upper = ab.beads[c].upper.filter(Boolean).length * 5;
+    const lower = ab.beads[c].lower.filter(Boolean).length;
+    total += (upper + lower) * pv;
+  }
+  return total;
+}
+
+function toggleBead(id, col, type, idx) {
+  const ab = abaci[id];
+  ab.beads[col][type][idx] = !ab.beads[col][type][idx];
+  renderAbacus(id);
+  updateDisplay(id);
+}
+
+function resetAbacus(id) {
+  const ab = abaci[id];
+  for (let c = 0; c < ab.placeCount; c++) {
+    ab.beads[c].upper = [false];
+    ab.beads[c].lower = [false, false, false, false];
+  }
+  renderAbacus(id);
+  updateDisplay(id);
+}
+
+function updateDisplay(id) {
+  const val = getValue(id);
+  if (id === 'fp') document.getElementById('fp-total').textContent = val;
+  if (id === 'cc') document.getElementById('cc-total').textContent = val;
+}
+
+function renderAbacus(id) {
+  const ab = abaci[id];
+  const containerId = id === 'fp' ? 'abacus-inner' : 'abacus-inner-' + id;
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  // Keep divider bar
+  container.innerHTML = '<div class="divider-bar"></div>';
+
+  for (let c = ab.placeCount - 1; c >= 0; c--) {
+    const col = BEAD_COLORS[c % BEAD_COLORS.length];
+    const rodDiv = document.createElement('div');
+    rodDiv.className = 'rod-container';
+    rodDiv.style.position = 'relative';
+    rodDiv.style.width = '44px';
+    rodDiv.style.height = '200px';
+
+    // Rod line
+    const rod = document.createElement('div');
+    rod.className = 'rod-line';
+    rod.style.position = 'absolute';
+    rod.style.left = '50%';
+    rod.style.top = '0';
+    rod.style.transform = 'translateX(-50%)';
+    rod.style.height = '200px';
+    rodDiv.appendChild(rod);
+
+    // Upper bead (1 bead, worth 5)
+    const upperBead = document.createElement('div');
+    upperBead.className = 'bead ' + (ab.beads[c].upper[0] ? 'active' : 'inactive');
+    const uActive = ab.beads[c].upper[0];
+    upperBead.style.background = uActive
+      ? `radial-gradient(circle at 35% 30%, ${lightenColor(col.top)}, ${col.top})`
+      : 'radial-gradient(circle at 35% 30%, #F0EEFF, #DDD8F0)';
+    if (uActive) upperBead.style.boxShadow = `0 4px 14px ${col.top}88`;
+    upperBead.style.top = uActive ? '82px' : '12px';
+    upperBead.textContent = '5';
+    upperBead.title = 'Worth 5 — click to move!';
+    upperBead.addEventListener('click', () => toggleBead(id, c, 'upper', 0));
+    rodDiv.appendChild(upperBead);
+
+    // Lower beads (4 beads, worth 1 each)
+    for (let b = 0; b < 4; b++) {
+      const lBead = document.createElement('div');
+      lBead.className = 'bead ' + (ab.beads[c].lower[b] ? 'active' : 'inactive');
+      const lActive = ab.beads[c].lower[b];
+      lBead.style.background = lActive
+        ? `radial-gradient(circle at 35% 30%, ${lightenColor(col.bottom)}, ${col.bottom})`
+        : 'radial-gradient(circle at 35% 30%, #F0EEFF, #DDD8F0)';
+      if (lActive) lBead.style.boxShadow = `0 4px 14px ${col.bottom}88`;
+      // Active = move UP toward divider (at ~108px), inactive = down
+      const inactiveTop = 112 + b * 40;
+      const activeTop = 108 + (3 - b) * (-38);
+      lBead.style.top = lActive ? Math.max(106 - (3 - b) * 38, 108) + 'px' : inactiveTop + 'px';
+      lBead.textContent = '1';
+      lBead.title = 'Worth 1 — click to move!';
+      lBead.addEventListener('click', () => toggleBead(id, c, 'lower', b));
+      rodDiv.appendChild(lBead);
+    }
+
+    // Place value label
+    const label = document.createElement('div');
+    label.className = 'rod-label';
+    label.style.position = 'absolute';
+    label.style.bottom = '0';
+    label.style.left = '50%';
+    label.style.transform = 'translateX(-50%)';
+    label.textContent = PLACE_VALUES[c] >= 1000 ? '1K' : PLACE_VALUES[c] + 's';
+    rodDiv.appendChild(label);
+
+    container.appendChild(rodDiv);
+  }
+}
+
+function lightenColor(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.min(r+60,255)},${Math.min(g+60,255)},${Math.min(b+60,255)})`;
+}
+
+// ===== SECTIONS =====
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+
+  if (id === 'quiz') nextQuiz();
+  if (id === 'count-challenge') newCountChallenge();
+  if (id === 'counting-game') newCountGame();
+}
+
+// ===== COUNT CHALLENGE =====
+function setLevel(level, btn) {
+  challengeLevel = level;
+  document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  newCountChallenge();
+}
+
+function newCountChallenge() {
+  let max = challengeLevel === 'easy' ? 9 : challengeLevel === 'medium' ? 49 : 99;
+  let min = challengeLevel === 'easy' ? 1 : challengeLevel === 'medium' ? 10 : 50;
+  currentTarget = Math.floor(Math.random() * (max - min + 1)) + min;
+  document.getElementById('cc-target').textContent = currentTarget;
+  resetAbacus('cc');
+  document.getElementById('cc-feedback').textContent = '';
+  document.getElementById('cc-feedback').style.color = '';
+  document.getElementById('cc-total').textContent = '0';
+  // Reset stars
+  const stars = document.querySelectorAll('#cc-stars .star');
+  stars.forEach(s => s.textContent = '☆');
+}
+
+function checkCountChallenge() {
+  const val = getValue('cc');
+  const fb = document.getElementById('cc-feedback');
+  if (val === currentTarget) {
+    fb.textContent = '🎉 Correct! Awesome job!';
+    fb.style.color = '#28a745';
+    addScore(10);
+    earnStar();
+    if (cc_stars >= 3) launchConfetti();
+    showCelebration('🌟', 'You Did It!', `${currentTarget} is correct! +10 stars`);
+    setTimeout(newCountChallenge, 2200);
+  } else if (val < currentTarget) {
+    fb.textContent = `📈 Too low! Try adding more beads. (${val} < ${currentTarget})`;
+    fb.style.color = '#e67e22';
+  } else {
+    fb.textContent = `📉 Too high! Remove some beads. (${val} > ${currentTarget})`;
+    fb.style.color = '#e74c3c';
+  }
+}
+
+function earnStar() {
+  const stars = document.querySelectorAll('#cc-stars .star');
+  const nextEmpty = Array.from(stars).findIndex(s => s.textContent === '☆');
+  if (nextEmpty !== -1) {
+    stars[nextEmpty].textContent = '⭐';
+    stars[nextEmpty].classList.add('earned');
+    setTimeout(() => stars[nextEmpty].classList.remove('earned'), 500);
+    cc_stars++;
+  }
+}
+
+// ===== QUIZ =====
+const quizNumbers = [1,2,3,4,5,6,7,8,9,13,17,22,35,46,58,72,85,94];
+
+function nextQuiz() {
+  quizLocked = false;
+  document.getElementById('quiz-next').style.display = 'none';
+  document.getElementById('quiz-feedback').textContent = '';
+
+  quizAnswer = quizNumbers[Math.floor(Math.random() * quizNumbers.length)];
+  document.getElementById('quiz-question').textContent = 'What number is showing on the abacus?';
+
+  // Render mini abacus
+  renderMiniAbacus(quizAnswer);
+
+  // Generate choices
+  const choices = [quizAnswer];
+  while (choices.length < 4) {
+    const offset = Math.floor(Math.random() * 20) - 10;
+    const c = Math.max(0, quizAnswer + offset);
+    if (!choices.includes(c)) choices.push(c);
+  }
+  choices.sort(() => Math.random() - 0.5);
+
+  const choicesEl = document.getElementById('quiz-choices');
+  choicesEl.innerHTML = '';
+  choices.forEach(ch => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = ch;
+    btn.onclick = () => answerQuiz(btn, ch);
+    choicesEl.appendChild(btn);
+  });
+}
+
+function renderMiniAbacus(num) {
+  const container = document.getElementById('quiz-abacus');
+  container.innerHTML = '';
+
+  // Parse: up to 2 columns
+  const ones = num % 10;
+  const tens = Math.floor(num / 10);
+
+  [tens, ones].forEach((digit, ci) => {
+    const upperActive = digit >= 5;
+    const lowerCount = digit >= 5 ? digit - 5 : digit;
+    const col = BEAD_COLORS[ci % 2];
+
+    const rodDiv = document.createElement('div');
+    rodDiv.className = 'mini-rod';
+    rodDiv.style.position = 'relative';
+    rodDiv.style.width = '32px';
+
+    // Upper bead
+    const uBead = document.createElement('div');
+    uBead.className = 'mini-bead';
+    uBead.textContent = '5';
+    uBead.style.background = upperActive ? col.top : '#DDD8F0';
+    uBead.style.marginBottom = upperActive ? '2px' : '0';
+    rodDiv.appendChild(uBead);
+
+    const div = document.createElement('div');
+    div.className = 'mini-divider';
+    rodDiv.appendChild(div);
+
+    for (let b = 0; b < 4; b++) {
+      const lBead = document.createElement('div');
+      lBead.className = 'mini-bead';
+      lBead.textContent = '1';
+      lBead.style.background = b < lowerCount ? col.bottom : '#DDD8F0';
+      rodDiv.appendChild(lBead);
+    }
+
+    const lbl = document.createElement('div');
+    lbl.style.fontSize = '11px'; lbl.style.color = '#7A6D8A'; lbl.style.textAlign = 'center'; lbl.style.fontWeight = '700';
+    lbl.textContent = ci === 0 ? '10s' : '1s';
+    rodDiv.appendChild(lbl);
+
+    container.appendChild(rodDiv);
+  });
+}
+
+function answerQuiz(btn, answer) {
+  if (quizLocked) return;
+  quizLocked = true;
+
+  const fb = document.getElementById('quiz-feedback');
+  const allBtns = document.querySelectorAll('#quiz-choices .choice-btn');
+
+  allBtns.forEach(b => {
+    b.disabled = true;
+    if (parseInt(b.textContent) === quizAnswer) b.classList.add('correct');
+  });
+
+  if (answer === quizAnswer) {
+    btn.classList.add('correct');
+    fb.textContent = '🎉 Correct! Great job!';
+    fb.style.color = '#28a745';
+    addScore(15);
+    launchConfetti();
+  } else {
+    btn.classList.add('wrong');
+    fb.textContent = `❌ Not quite! The answer was ${quizAnswer}.`;
+    fb.style.color = '#dc3545';
+  }
+
+  document.getElementById('quiz-next').style.display = 'block';
+}
+
+// ===== COUNT ANIMALS GAME =====
+const animals = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🦄','🐔','🐧','🐦','🦆','🦅','🦋','🐛','🐌','🐞','🐝','🦎','🐢','🐍','🦖','🦕','🦞','🦀','🐡','🐬','🐳','🦈'];
+
+function newCountGame() {
+  cg_counted = 0;
+  document.getElementById('cg-count').textContent = '0';
+  document.getElementById('cg-feedback').textContent = '';
+
+  const animal = animals[Math.floor(Math.random() * animals.length)];
+  const count = Math.floor(Math.random() * 8) + 3;
+  cg_total = count;
+
+  const grid = document.getElementById('animal-display');
+  grid.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const item = document.createElement('div');
+    item.className = 'count-item';
+    item.textContent = animal;
+    item.addEventListener('click', function() {
+      if (!this.classList.contains('counted')) {
+        this.classList.add('counted');
+        cg_counted++;
+        document.getElementById('cg-count').textContent = cg_counted;
+      }
+    });
+    grid.appendChild(item);
+  }
+}
+
+function checkCountGame() {
+  const fb = document.getElementById('cg-feedback');
+  if (cg_counted === cg_total) {
+    fb.textContent = `🌟 Perfect! You counted all ${cg_total}!`;
+    fb.style.color = '#28a745';
+    addScore(8);
+    launchConfetti();
+    showCelebration('🎊', 'Perfect Count!', `You found all ${cg_total} animals! +8 stars`);
+  } else if (cg_counted > cg_total) {
+    fb.textContent = `🤔 Oops! You counted too many. There are only ${cg_total}.`;
+    fb.style.color = '#e74c3c';
+  } else {
+    fb.textContent = `👀 Look again! You found ${cg_counted} but there are ${cg_total}.`;
+    fb.style.color = '#e67e22';
+  }
+}
+
+// ===== SCORE =====
+function addScore(pts) {
+  totalScore += pts;
+  document.getElementById('total-score').textContent = totalScore;
+}
+
+// ===== CELEBRATION =====
+function showCelebration(emoji, title, msg) {
+  document.getElementById('celeb-emoji').textContent = emoji;
+  document.getElementById('celeb-title').textContent = title;
+  document.getElementById('celeb-msg').textContent = msg;
+  document.getElementById('celebration').classList.add('show');
+  launchConfetti();
+}
+
+function closeCelebration() {
+  document.getElementById('celebration').classList.remove('show');
+}
+
+// ===== CONFETTI =====
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const pieces = [];
+  const colors = ['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#FF922B','#CC5DE8'];
+  for (let i = 0; i < 90; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: -20,
+      size: Math.random() * 12 + 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 6,
+      vy: Math.random() * 4 + 2,
+      angle: Math.random() * 360,
+      spin: (Math.random() - 0.5) * 10,
+      shape: Math.random() > 0.5 ? 'rect' : 'circle'
+    });
+  }
+
+  let frame = 0;
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, 1 - frame / 90);
+      if (p.shape === 'rect') {
+        ctx.fillRect(-p.size/2, -p.size/4, p.size, p.size/2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size/2, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+      p.x += p.vx; p.y += p.vy;
+      p.angle += p.spin;
+      p.vy += 0.1;
+    });
+    frame++;
+    if (frame < 100) requestAnimationFrame(animate);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  animate();
+}
+
+// ===== INIT =====
+window.addEventListener('DOMContentLoaded', () => {
+  createAbacus('fp', 4);
+  createAbacus('cc', 4);
+  newCountChallenge();
+  newCountGame();
+  nextQuiz();
+});
+</script>
+</body>
+</html>
